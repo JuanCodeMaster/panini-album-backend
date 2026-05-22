@@ -20,9 +20,19 @@ public class CorsConfig {
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        // Usar patterns en lugar de origins fijos:
+        //  - permite wildcards (LAN IPs tipo 192.168.*.*)
+        //  - es la única forma compatible con allowCredentials=true cuando
+        //    el WebView de Capacitor manda Origin: capacitor://localhost,
+        //    ionic://localhost o https://localhost.
+        config.setAllowedOriginPatterns(
+                Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList()
+        );
         config.setAllowedHeaders(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
         config.setExposedHeaders(List.of("Authorization"));
         config.setMaxAge(3600L);
 

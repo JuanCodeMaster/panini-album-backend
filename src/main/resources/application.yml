@@ -30,7 +30,13 @@ logging:
 
 app:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8100,http://localhost:4200,capacitor://localhost,ionic://localhost}
+    # Patrones (no orígenes exactos). Soportan wildcards * gracias a setAllowedOriginPatterns.
+    # Incluye:
+    #  - localhost dev (Ionic/Angular)
+    #  - capacitor:// e ionic:// (WebView nativo iOS/Android)
+    #  - https://localhost (Android con androidScheme:'https')
+    #  - LAN 192.168.*.*, 10.*.*.* (cuando consumes el API desde un celular físico en la misma red Wi-Fi)
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8100,http://localhost:4200,capacitor://localhost,ionic://localhost,https://localhost,http://localhost,http://192.168.*:*,http://10.*:*,https://192.168.*:*,https://10.*:*}
   jwt:
     secret: ${JWT_SECRET:cambiame-en-produccion-este-debe-ser-un-string-largo-y-aleatorio-de-mas-de-64-caracteres-1234567890}
     expiration-ms: 86400000  # 24h
