@@ -3,8 +3,10 @@ package com.panini.album.album;
 import com.panini.album.catalog.Sticker;
 import com.panini.album.user.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -57,4 +59,10 @@ public interface UserStickerRepository extends JpaRepository<UserSticker, Long> 
         String getCode();
         Long getObtained();
     }
+
+    /** Bulk delete de user_stickers que referencian a stickers que se van a eliminar. */
+    @Modifying
+    @Transactional
+    @Query("delete from UserSticker us where us.sticker.id in :stickerIds")
+    int deleteByStickerIdIn(@Param("stickerIds") List<Long> stickerIds);
 }

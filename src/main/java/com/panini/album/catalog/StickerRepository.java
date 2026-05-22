@@ -48,4 +48,13 @@ public interface StickerRepository extends org.springframework.data.jpa.reposito
             order by s.country.displayOrder asc nulls first, s.numberInCountry asc, s.code asc
             """)
     List<Sticker> findMissingForUser(Long userId);
+
+    /** Stickers del TEAM con país pero sin pos válido (1..20) — basura de seeds previos. */
+    @Query("""
+            select s from Sticker s
+            where s.section.code = 'TEAM'
+              and s.country.code = :countryCode
+              and (s.numberInCountry is null or s.numberInCountry < 1 or s.numberInCountry > 20)
+            """)
+    List<Sticker> findOrphanCountryStickers(String countryCode);
 }

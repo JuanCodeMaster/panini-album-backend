@@ -1,5 +1,6 @@
 package com.panini.album.catalog;
 
+import com.panini.album.album.UserStickerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -20,6 +21,7 @@ public class CatalogSeeder implements CommandLineRunner {
     private final SectionRepository sectionRepository;
     private final CountryRepository countryRepository;
     private final StickerRepository stickerRepository;
+    private final UserStickerRepository userStickerRepository;
 
     @Override
     @Transactional
@@ -59,7 +61,7 @@ public class CatalogSeeder implements CommandLineRunner {
     }
 
     private void seedCocaCola(Section cc) {
-        // 12 cromos exclusivos de Coca-Cola (no en sobres estándar).
+        // 14 cromos exclusivos de Coca-Cola (no en sobres estándar).
         // Formato: code, displayName, countryCode (para fondo bandera + agrupación)
         String[][] data = {
                 {"CC1",  "Lamine Yamal",        "ESP"},
@@ -74,6 +76,8 @@ public class CatalogSeeder implements CommandLineRunner {
                 {"CC10", "Weston McKennie",     "USA"},
                 {"CC11", "Lautaro Martínez",    "ARG"},
                 {"CC12", "Gabriel Magalhães",   "BRA"},
+                {"CC13", "Kylian Mbappé",       "FRA"},
+                {"CC14", "Achraf Hakimi",       "MAR"},
         };
 
         List<Sticker> stickers = new ArrayList<>();
@@ -172,26 +176,35 @@ public class CatalogSeeder implements CommandLineRunner {
     }
 
     /**
-     * Mapping de cada selección a su grupo del Mundial 2026 (A..L, 12 grupos × 4).
-     * Distribución mock para anclar la UI; el sorteo real cambiará estos valores.
+     * Grupos oficiales del sorteo final del Mundial 2026 (Washington D.C., 5/dic/2025).
+     * 12 grupos × 4 selecciones = 48.
      */
     private static Map<String, String> wcGroupMap() {
         Map<String, String> m = new java.util.HashMap<>();
-        // Anfitriones separados (CONCACAF + invitados rotativos)
-        m.put("MEX", "A"); m.put("KOR", "A"); m.put("CUW", "A"); m.put("NOR", "A");
-        m.put("USA", "B"); m.put("HAI", "B"); m.put("IRN", "B"); m.put("AUT", "B");
-        m.put("CAN", "C"); m.put("PAR", "C"); m.put("RSA", "C"); m.put("BIH", "C");
-        // Top seeds CONMEBOL
-        m.put("ARG", "D"); m.put("IRQ", "D"); m.put("EGY", "D"); m.put("CPV", "D");
-        m.put("BRA", "E"); m.put("NZL", "E"); m.put("JOR", "E"); m.put("COD", "E");
-        // UEFA / mezcla
-        m.put("ESP", "F"); m.put("KSA", "F"); m.put("CIV", "F"); m.put("UZB", "F");
-        m.put("FRA", "G"); m.put("PAN", "G"); m.put("ALG", "G"); m.put("QAT", "G");
-        m.put("GER", "H"); m.put("ECU", "H"); m.put("GHA", "H"); m.put("AUS", "H");
-        m.put("ENG", "I"); m.put("NED", "I"); m.put("SUI", "I"); m.put("CZE", "I");
-        m.put("POR", "J"); m.put("COL", "J"); m.put("TUR", "J"); m.put("SEN", "J");
-        m.put("BEL", "K"); m.put("JPN", "K"); m.put("MAR", "K"); m.put("SCO", "K");
-        m.put("CRO", "L"); m.put("URU", "L"); m.put("TUN", "L"); m.put("SWE", "L");
+        // Group A
+        m.put("MEX", "A"); m.put("KOR", "A"); m.put("RSA", "A"); m.put("CZE", "A");
+        // Group B
+        m.put("CAN", "B"); m.put("SUI", "B"); m.put("QAT", "B"); m.put("BIH", "B");
+        // Group C
+        m.put("BRA", "C"); m.put("MAR", "C"); m.put("SCO", "C"); m.put("HAI", "C");
+        // Group D
+        m.put("USA", "D"); m.put("PAR", "D"); m.put("AUS", "D"); m.put("TUR", "D");
+        // Group E
+        m.put("GER", "E"); m.put("ECU", "E"); m.put("CIV", "E"); m.put("CUW", "E");
+        // Group F
+        m.put("NED", "F"); m.put("JPN", "F"); m.put("TUN", "F"); m.put("SWE", "F");
+        // Group G
+        m.put("BEL", "G"); m.put("IRN", "G"); m.put("EGY", "G"); m.put("NZL", "G");
+        // Group H
+        m.put("ESP", "H"); m.put("URU", "H"); m.put("KSA", "H"); m.put("CPV", "H");
+        // Group I
+        m.put("FRA", "I"); m.put("SEN", "I"); m.put("NOR", "I"); m.put("IRQ", "I");
+        // Group J
+        m.put("ARG", "J"); m.put("AUT", "J"); m.put("ALG", "J"); m.put("JOR", "J");
+        // Group K
+        m.put("POR", "K"); m.put("COL", "K"); m.put("UZB", "K"); m.put("COD", "K");
+        // Group L
+        m.put("ENG", "L"); m.put("CRO", "L"); m.put("PAN", "L"); m.put("GHA", "L");
         return m;
     }
 
@@ -259,12 +272,52 @@ public class CatalogSeeder implements CommandLineRunner {
             log.info("Grupos del Mundial asignados: {}", groupsUpdated);
         }
 
-        // Crear sección Coca-Cola si no existe (con sus 12 cromos)
-        if (sectionRepository.findByCode("COCACOLA").isEmpty()) {
-            Section cc = sectionRepository.save(Section.builder()
+        // Limpiar stickers huérfanos del TEAM (sin pos válido) y sus user_stickers asociados.
+        // Estos eran restos de seeds anteriores que aparecían "sin número" al lado del escudo.
+        int orphanCount = 0;
+        for (Country c : countries) {
+            List<Sticker> orphans = stickerRepository.findOrphanCountryStickers(c.getCode());
+            if (orphans.isEmpty()) continue;
+            List<Long> ids = orphans.stream().map(Sticker::getId).toList();
+            userStickerRepository.deleteByStickerIdIn(ids);
+            stickerRepository.deleteAll(orphans);
+            stickerRepository.flush();
+            orphanCount += orphans.size();
+            log.info("  {} → borrados {} stickers huérfanos", c.getCode(), orphans.size());
+        }
+        if (orphanCount > 0) {
+            log.info("Total huérfanos eliminados: {}", orphanCount);
+        }
+
+        // Crear sección Coca-Cola si no existe (con sus 14 cromos)
+        Section cocaCola = sectionRepository.findByCode("COCACOLA").orElse(null);
+        if (cocaCola == null) {
+            cocaCola = sectionRepository.save(Section.builder()
                     .code("COCACOLA").name("Coca-Cola Exclusivos").displayOrder(4).build());
-            seedCocaCola(cc);
-            log.info("Sección COCACOLA creada con 12 cromos");
+            seedCocaCola(cocaCola);
+            log.info("Sección COCACOLA creada con 14 cromos");
+        } else {
+            // Asegurar que estén los 14 (insertar los que falten por code)
+            int added = 0;
+            for (String code : new String[]{"CC13", "CC14"}) {
+                if (stickerRepository.findByCode(code).isEmpty()) {
+                    String name = "CC13".equals(code) ? "Kylian Mbappé" : "Achraf Hakimi";
+                    String cc = "CC13".equals(code) ? "FRA" : "MAR";
+                    Country country = countryRepository.findByCode(cc).orElse(null);
+                    stickerRepository.save(Sticker.builder()
+                            .section(cocaCola)
+                            .country(country)
+                            .code(code)
+                            .displayName(name)
+                            .stickerType(StickerType.SPECIAL)
+                            .foil(true)
+                            .inPacks(false)
+                            .imageUrl(playerAvatarUrl(name))
+                            .build());
+                    added++;
+                }
+            }
+            if (added > 0) log.info("Coca-Cola: añadidos {} cromos faltantes (ahora 14)", added);
         }
 
         for (Country country : countries) {
