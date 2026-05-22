@@ -9,5 +9,8 @@ FROM amazoncorretto:21
 WORKDIR /app
 COPY --from=builder /api/target/*.jar app.jar
 
-EXPOSE 8080
+# Railway rutea al puerto que tengas en Networking → Target Port.
+# Si lo dejas en 8081 ahí, este EXPOSE coincide y application.yml
+# ${PORT:8081} cierra el lazo aunque Railway no inyecte PORT.
+EXPOSE 8081
 ENTRYPOINT ["java","-jar","/app/app.jar"]
