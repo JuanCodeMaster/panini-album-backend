@@ -11,11 +11,12 @@ public interface StickerRepository extends org.springframework.data.jpa.reposito
     Optional<Sticker> findByCode(String code);
 
 
+    /** Roster del país (sólo sección TEAM). Excluye Coca-Cola aunque tenga country. */
     @Query("""
             select s from Sticker s
             join fetch s.section
             left join fetch s.country
-            where s.country.code = :code
+            where s.country.code = :code and s.section.code = 'TEAM'
             order by s.numberInCountry asc
             """)
     List<Sticker> findByCountryCode(String code);
