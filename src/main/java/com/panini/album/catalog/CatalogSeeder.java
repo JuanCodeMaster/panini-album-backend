@@ -139,40 +139,106 @@ public class CatalogSeeder implements CommandLineRunner {
     }
 
     private void seedCountries() {
-        String[][] data = {
-                {"ALG", "Argelia", "DZ"}, {"ARG", "Argentina", "AR"},
-                {"AUS", "Australia", "AU"}, {"AUT", "Austria", "AT"},
-                {"BEL", "Bélgica", "BE"}, {"BIH", "Bosnia y Herzegovina", "BA"},
-                {"BRA", "Brasil", "BR"}, {"CAN", "Canadá", "CA"},
-                {"CIV", "Costa de Marfil", "CI"}, {"COD", "Congo RD", "CD"},
-                {"COL", "Colombia", "CO"}, {"CPV", "Cabo Verde", "CV"},
-                {"CRO", "Croacia", "HR"}, {"CUW", "Curazao", "CW"},
-                {"CZE", "Chequia", "CZ"}, {"ECU", "Ecuador", "EC"},
-                {"EGY", "Egipto", "EG"}, {"ENG", "Inglaterra", "GB-ENG"},
-                {"ESP", "España", "ES"}, {"FRA", "Francia", "FR"},
-                {"GER", "Alemania", "DE"}, {"GHA", "Ghana", "GH"},
-                {"HAI", "Haití", "HT"}, {"IRN", "Irán", "IR"},
-                {"IRQ", "Irak", "IQ"}, {"JOR", "Jordania", "JO"},
-                {"JPN", "Japón", "JP"}, {"KOR", "Corea del Sur", "KR"},
-                {"KSA", "Arabia Saudita", "SA"}, {"MAR", "Marruecos", "MA"},
-                {"MEX", "México", "MX"}, {"NED", "Países Bajos", "NL"},
-                {"NOR", "Noruega", "NO"}, {"NZL", "Nueva Zelanda", "NZ"},
-                {"PAN", "Panamá", "PA"}, {"PAR", "Paraguay", "PY"},
-                {"POR", "Portugal", "PT"}, {"QAT", "Qatar", "QA"},
-                {"RSA", "Sudáfrica", "ZA"}, {"SCO", "Escocia", "GB-SCT"},
-                {"SEN", "Senegal", "SN"}, {"SUI", "Suiza", "CH"},
-                {"SWE", "Suecia", "SE"}, {"TUN", "Túnez", "TN"},
-                {"TUR", "Turquía", "TR"}, {"URU", "Uruguay", "UY"},
-                {"USA", "Estados Unidos", "US"}, {"UZB", "Uzbekistán", "UZ"},
-        };
+        // Datos por código (luego asigno displayOrder según orden del álbum por grupos A→L)
+        Map<String, String[]> meta = new java.util.LinkedHashMap<>();
+        meta.put("ALG", new String[]{"Argelia", "DZ"});
+        meta.put("ARG", new String[]{"Argentina", "AR"});
+        meta.put("AUS", new String[]{"Australia", "AU"});
+        meta.put("AUT", new String[]{"Austria", "AT"});
+        meta.put("BEL", new String[]{"Bélgica", "BE"});
+        meta.put("BIH", new String[]{"Bosnia y Herzegovina", "BA"});
+        meta.put("BRA", new String[]{"Brasil", "BR"});
+        meta.put("CAN", new String[]{"Canadá", "CA"});
+        meta.put("CIV", new String[]{"Costa de Marfil", "CI"});
+        meta.put("COD", new String[]{"Congo RD", "CD"});
+        meta.put("COL", new String[]{"Colombia", "CO"});
+        meta.put("CPV", new String[]{"Cabo Verde", "CV"});
+        meta.put("CRO", new String[]{"Croacia", "HR"});
+        meta.put("CUW", new String[]{"Curazao", "CW"});
+        meta.put("CZE", new String[]{"Chequia", "CZ"});
+        meta.put("ECU", new String[]{"Ecuador", "EC"});
+        meta.put("EGY", new String[]{"Egipto", "EG"});
+        meta.put("ENG", new String[]{"Inglaterra", "GB-ENG"});
+        meta.put("ESP", new String[]{"España", "ES"});
+        meta.put("FRA", new String[]{"Francia", "FR"});
+        meta.put("GER", new String[]{"Alemania", "DE"});
+        meta.put("GHA", new String[]{"Ghana", "GH"});
+        meta.put("HAI", new String[]{"Haití", "HT"});
+        meta.put("IRN", new String[]{"Irán", "IR"});
+        meta.put("IRQ", new String[]{"Irak", "IQ"});
+        meta.put("JOR", new String[]{"Jordania", "JO"});
+        meta.put("JPN", new String[]{"Japón", "JP"});
+        meta.put("KOR", new String[]{"Corea del Sur", "KR"});
+        meta.put("KSA", new String[]{"Arabia Saudita", "SA"});
+        meta.put("MAR", new String[]{"Marruecos", "MA"});
+        meta.put("MEX", new String[]{"México", "MX"});
+        meta.put("NED", new String[]{"Países Bajos", "NL"});
+        meta.put("NOR", new String[]{"Noruega", "NO"});
+        meta.put("NZL", new String[]{"Nueva Zelanda", "NZ"});
+        meta.put("PAN", new String[]{"Panamá", "PA"});
+        meta.put("PAR", new String[]{"Paraguay", "PY"});
+        meta.put("POR", new String[]{"Portugal", "PT"});
+        meta.put("QAT", new String[]{"Qatar", "QA"});
+        meta.put("RSA", new String[]{"Sudáfrica", "ZA"});
+        meta.put("SCO", new String[]{"Escocia", "GB-SCT"});
+        meta.put("SEN", new String[]{"Senegal", "SN"});
+        meta.put("SUI", new String[]{"Suiza", "CH"});
+        meta.put("SWE", new String[]{"Suecia", "SE"});
+        meta.put("TUN", new String[]{"Túnez", "TN"});
+        meta.put("TUR", new String[]{"Turquía", "TR"});
+        meta.put("URU", new String[]{"Uruguay", "UY"});
+        meta.put("USA", new String[]{"Estados Unidos", "US"});
+        meta.put("UZB", new String[]{"Uzbekistán", "UZ"});
+
         Map<String, String> groups = wcGroupMap();
-        int order = 1;
-        for (String[] row : data) {
+        Map<String, Integer> orderMap = albumOrderMap();
+        for (Map.Entry<String, String[]> e : meta.entrySet()) {
+            String code = e.getKey();
             countryRepository.save(Country.builder()
-                    .code(row[0]).name(row[1]).iso2(row[2])
-                    .wcGroup(groups.get(row[0]))
-                    .displayOrder(order++).build());
+                    .code(code)
+                    .name(e.getValue()[0])
+                    .iso2(e.getValue()[1])
+                    .wcGroup(groups.get(code))
+                    .displayOrder(orderMap.getOrDefault(code, 99))
+                    .build());
         }
+    }
+
+    /**
+     * Orden de aparición en el álbum Panini WC 2026.
+     * Sigue los grupos A→L del sorteo oficial; dentro de cada grupo, el anfitrión/cabeza
+     * de serie va primero (posición 1) y los demás en orden de bombo descendente.
+     */
+    private static Map<String, Integer> albumOrderMap() {
+        String[] orderedCodes = {
+                // A: México (host A1) + Bombo 2,3,4
+                "MEX", "KOR", "RSA", "CZE",
+                // B: Canadá (host B1) + Bombo 2,3,4
+                "CAN", "SUI", "QAT", "BIH",
+                // C
+                "BRA", "MAR", "SCO", "HAI",
+                // D: USA (host D1)
+                "USA", "PAR", "AUS", "TUR",
+                // E
+                "GER", "ECU", "CIV", "CUW",
+                // F
+                "NED", "JPN", "TUN", "SWE",
+                // G
+                "BEL", "IRN", "EGY", "NZL",
+                // H
+                "ESP", "URU", "KSA", "CPV",
+                // I
+                "FRA", "SEN", "NOR", "IRQ",
+                // J
+                "ARG", "AUT", "ALG", "JOR",
+                // K
+                "POR", "COL", "UZB", "COD",
+                // L
+                "ENG", "CRO", "PAN", "GHA",
+        };
+        Map<String, Integer> m = new java.util.HashMap<>();
+        for (int i = 0; i < orderedCodes.length; i++) m.put(orderedCodes[i], i + 1);
+        return m;
     }
 
     /**
@@ -270,6 +336,21 @@ public class CatalogSeeder implements CommandLineRunner {
         }
         if (groupsUpdated > 0) {
             log.info("Grupos del Mundial asignados: {}", groupsUpdated);
+        }
+
+        // Backfill displayOrder al orden real del álbum (grupos A→L)
+        Map<String, Integer> orderMap = albumOrderMap();
+        int orderUpdated = 0;
+        for (Country c : countries) {
+            Integer newOrder = orderMap.get(c.getCode());
+            if (newOrder != null && (c.getDisplayOrder() == null || !newOrder.equals(c.getDisplayOrder()))) {
+                c.setDisplayOrder(newOrder);
+                countryRepository.save(c);
+                orderUpdated++;
+            }
+        }
+        if (orderUpdated > 0) {
+            log.info("Orden del álbum actualizado: {} países", orderUpdated);
         }
 
         // Limpiar stickers huérfanos del TEAM (sin pos válido) y sus user_stickers asociados.
