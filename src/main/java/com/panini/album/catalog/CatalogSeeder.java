@@ -61,27 +61,8 @@ public class CatalogSeeder implements CommandLineRunner {
     }
 
     private void seedCocaCola(Section cc) {
-        // 14 cromos exclusivos de Coca-Cola (no en sobres estándar).
-        // Formato: code, displayName, countryCode (para fondo bandera + agrupación)
-        String[][] data = {
-                {"CC1",  "Lamine Yamal",        "ESP"},
-                {"CC2",  "Joshua Kimmich",      "GER"},
-                {"CC3",  "Harry Kane",          "ENG"},
-                {"CC4",  "Santiago Giménez",    "MEX"},
-                {"CC5",  "Antonee Robinson",    "USA"},
-                {"CC6",  "Jefferson Lerma",     "COL"},
-                {"CC7",  "Edson Álvarez",       "MEX"},
-                {"CC8",  "Virgil van Dijk",     "NED"},
-                {"CC9",  "Alphonso Davies",     "CAN"},
-                {"CC10", "Weston McKennie",     "USA"},
-                {"CC11", "Lautaro Martínez",    "ARG"},
-                {"CC12", "Gabriel Magalhães",   "BRA"},
-                {"CC13", "Kylian Mbappé",       "FRA"},
-                {"CC14", "Achraf Hakimi",       "MAR"},
-        };
-
         List<Sticker> stickers = new ArrayList<>();
-        for (String[] row : data) {
+        for (String[] row : cocaColaData()) {
             Country country = countryRepository.findByCode(row[2]).orElse(null);
             stickers.add(Sticker.builder()
                     .section(cc)
@@ -95,6 +76,26 @@ public class CatalogSeeder implements CommandLineRunner {
                     .build());
         }
         stickerRepository.saveAll(stickers);
+    }
+
+    // Formato: code, displayName, countryCode (para fondo bandera + agrupación).
+    private String[][] cocaColaData() {
+        return new String[][]{
+                {"CC1",  "Lamine Yamal",        "ESP"},
+                {"CC2",  "Joshua Kimmich",      "GER"},
+                {"CC3",  "Harry Kane",          "ENG"},
+                {"CC4",  "Santiago Giménez",    "MEX"},
+                {"CC5",  "Joško Gvardiol",      "CRO"},
+                {"CC6",  "Federico Valverde",   "URU"},
+                {"CC7",  "Jefferson Lerma",     "COL"},
+                {"CC8",  "Enner Valencia",      "ECU"},
+                {"CC9",  "Gabriel Magalhães",   "BRA"},
+                {"CC10", "Virgil van Dijk",     "NED"},
+                {"CC11", "Alphonso Davies",     "CAN"},
+                {"CC12", "Emiliano Martínez",   "ARG"},
+                {"CC13", "Raúl Jiménez",        "MEX"},
+                {"CC14", "Lautaro Martínez",    "ARG"},
+        };
     }
 
     private String playerAvatarUrl(String name) {
@@ -378,27 +379,8 @@ public class CatalogSeeder implements CommandLineRunner {
             seedCocaCola(cocaCola);
             log.info("Sección COCACOLA creada con 14 cromos");
         } else {
-            // Asegurar que estén los 14 (insertar los que falten por code)
-            int added = 0;
-            for (String code : new String[]{"CC13", "CC14"}) {
-                if (stickerRepository.findByCode(code).isEmpty()) {
-                    String name = "CC13".equals(code) ? "Kylian Mbappé" : "Achraf Hakimi";
-                    String cc = "CC13".equals(code) ? "FRA" : "MAR";
-                    Country country = countryRepository.findByCode(cc).orElse(null);
-                    stickerRepository.save(Sticker.builder()
-                            .section(cocaCola)
-                            .country(country)
-                            .code(code)
-                            .displayName(name)
-                            .stickerType(StickerType.SPECIAL)
-                            .foil(true)
-                            .inPacks(false)
-                            .imageUrl(playerAvatarUrl(name))
-                            .build());
-                    added++;
-                }
-            }
-            if (added > 0) log.info("Coca-Cola: añadidos {} cromos faltantes (ahora 14)", added);
+            int upserted = upsertCocaCola(cocaCola);
+            if (upserted > 0) log.info("Coca-Cola: sincronizados {} cromos exclusivos", upserted);
         }
 
         for (Country country : countries) {
@@ -430,6 +412,41 @@ public class CatalogSeeder implements CommandLineRunner {
             log.info("  {} ({}) → {} stickers", country.getCode(), country.getName(), countryUpdates);
         }
         log.info("Migración completada: {} stickers actualizados", updated);
+    }
+
+    private int upsertCocaCola(Section cocaCola) {
+        int changed = 0;
+        for (String[] row : cocaColaData()) {
+            String code = row[0];
+            String name = row[1];
+            Country country = countryRepository.findByCode(row[2]).orElse(null);
+            Sticker sticker = stickerRepository.findByCode(code).orElse(null);
+            if (sticker == null) {
+                stickerRepository.save(Sticker.builder()
+                        .section(cocaCola)
+                        .country(country)
+                        .code(code)
+                        .displayName(name)
+                        .stickerType(StickerType.SPECIAL)
+                        .foil(true)
+                        .inPacks(false)
+                        .imageUrl(playerAvatarUrl(name))
+                        .build());
+                changed++;
+                continue;
+            }
+            sticker.setSection(cocaCola);
+            sticker.setCountry(country);
+            sticker.setNumberInCountry(null);
+            sticker.setDisplayName(name);
+            sticker.setStickerType(StickerType.SPECIAL);
+            sticker.setFoil(true);
+            sticker.setInPacks(false);
+            sticker.setImageUrl(playerAvatarUrl(name));
+            stickerRepository.save(sticker);
+            changed++;
+        }
+        return changed;
     }
 
     // ---------- Helpers ----------

@@ -25,14 +25,18 @@ public interface UserStickerRepository extends JpaRepository<UserSticker, Long> 
 
     @Query("""
             select count(us) from UserSticker us
-            where us.user.id = :userId and us.sticker.country.code = :countryCode
+            where us.user.id = :userId
+              and us.sticker.country.code = :countryCode
+              and us.sticker.section.code = 'TEAM'
             """)
     long countCountryStickers(@Param("userId") Long userId, @Param("countryCode") String countryCode);
 
     @Query("""
             select us.sticker.country.code as code, count(us) as obtained
             from UserSticker us
-            where us.user.id = :userId and us.sticker.country is not null
+            where us.user.id = :userId
+              and us.sticker.country is not null
+              and us.sticker.section.code = 'TEAM'
             group by us.sticker.country.code
             """)
     List<CountryProgressRow> countByCountry(@Param("userId") Long userId);
