@@ -211,30 +211,30 @@ public class CatalogSeeder implements CommandLineRunner {
      */
     private static Map<String, Integer> albumOrderMap() {
         String[] orderedCodes = {
-                // A: México (host A1) + Bombo 2,3,4
-                "MEX", "KOR", "RSA", "CZE",
-                // B: Canadá (host B1) + Bombo 2,3,4
-                "CAN", "SUI", "QAT", "BIH",
+                // A
+                "MEX", "RSA", "KOR", "CZE",
+                // B
+                "CAN", "BIH", "QAT", "SUI",
                 // C
-                "BRA", "MAR", "SCO", "HAI",
-                // D: USA (host D1)
+                "BRA", "MAR", "HAI", "SCO",
+                // D
                 "USA", "PAR", "AUS", "TUR",
                 // E
-                "GER", "ECU", "CIV", "CUW",
+                "GER", "CUW", "CIV", "ECU",
                 // F
-                "NED", "JPN", "TUN", "SWE",
+                "NED", "JPN", "SWE", "TUN",
                 // G
-                "BEL", "IRN", "EGY", "NZL",
+                "BEL", "EGY", "IRN", "NZL",
                 // H
-                "ESP", "URU", "KSA", "CPV",
+                "ESP", "CPV", "KSA", "URU",
                 // I
-                "FRA", "SEN", "NOR", "IRQ",
+                "FRA", "SEN", "IRQ", "NOR",
                 // J
-                "ARG", "AUT", "ALG", "JOR",
+                "ARG", "ALG", "AUT", "JOR",
                 // K
-                "POR", "COL", "UZB", "COD",
+                "POR", "COD", "UZB", "COL",
                 // L
-                "ENG", "CRO", "PAN", "GHA",
+                "ENG", "CRO", "GHA", "PAN",
         };
         Map<String, Integer> m = new java.util.HashMap<>();
         for (int i = 0; i < orderedCodes.length; i++) m.put(orderedCodes[i], i + 1);
