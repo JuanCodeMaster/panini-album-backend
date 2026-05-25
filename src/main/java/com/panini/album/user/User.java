@@ -46,7 +46,7 @@ public class User {
     @Column(name = "longitude")
     private Double longitude;
 
-    @Column(name = "location_sharing", nullable = false)
+    @Column(name = "location_sharing", nullable = false, columnDefinition = "boolean not null default false")
     @Builder.Default
     private boolean locationSharing = false;
 
