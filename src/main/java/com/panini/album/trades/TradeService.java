@@ -26,6 +26,15 @@ public class TradeService {
     private final FriendshipRepository friendshipRepository;
     private final UserStickerRepository userStickerRepository;
 
+    /** Se puede intercambiar si son amigos confirmados O ambos comparten ubicación (cercanía). */
+    private boolean canTrade(User me, User other) {
+        boolean friends = friendshipRepository.findBetween(me, other)
+                .filter(f -> f.getStatus() == FriendshipStatus.ACCEPTED)
+                .isPresent();
+        boolean bothSharing = me.isLocationSharing() && other.isLocationSharing();
+        return friends || bothSharing;
+    }
+
     @Transactional(readOnly = true)
     public TradeMatchDto getMatches(User me, String friendUsername) {
         User friend = userRepository.findByUsername(friendUsername)
@@ -35,9 +44,9 @@ public class TradeService {
             throw new BadRequestException("No puedes calcular intercambios contigo mismo");
         }
 
-        var rel = friendshipRepository.findBetween(me, friend)
-                .filter(f -> f.getStatus() == FriendshipStatus.ACCEPTED)
-                .orElseThrow(() -> new BadRequestException("Solo puedes intercambiar con amigos confirmados"));
+        if (!canTrade(me, friend)) {
+            throw new BadRequestException("Solo puedes intercambiar con amigos o usuarios cercanos");
+        }
 
         // Lo que YO doy: mis repetidas (quantity > 1) que el amigo NO tiene (quantity 0 o sin registro)
         Set<Long> friendHas = userStickerRepository.findByUserIdWithSticker(friend.getId()).stream()
@@ -129,5 +138,84 @@ public class TradeService {
                 a.giveCount() + a.receiveCount()));
 
         return suggestions.stream().limit(safe).toList();
+    }
+
+    private static final double MAX_KM = 5.0;
+
+    @Transactional(readOnly = true)
+    public List<NearbySuggestionDto> getNearbySuggestions(User me) {
+        // Si yo no comparto ubicación, no puedo medir cercanía → no muestro nada.
+        if (!me.isLocationSharing() || me.getLatitude() == null || me.getLongitude() == null) {
+            return List.of();
+        }
+
+        Set<Long> iHaveIds = userStickerRepository.findByUserIdWithSticker(me.getId()).stream()
+                .filter(us -> us.getQuantity() > 0)
+                .map(us -> us.getSticker().getId())
+                .collect(Collectors.toSet());
+
+        List<Sticker> myDuplicates = userStickerRepository.findDuplicatesByUser(me.getId()).stream()
+                .map(us -> us.getSticker())
+                .toList();
+
+        List<NearbySuggestionDto> out = new java.util.ArrayList<>();
+        for (User other : userRepository.findByLocationSharingIsTrueAndLatitudeIsNotNull()) {
+            if (other.getId().equals(me.getId())) continue;
+            if (other.getLongitude() == null) continue;
+
+            double km = haversineKm(me.getLatitude(), me.getLongitude(),
+                    other.getLatitude(), other.getLongitude());
+            if (km > MAX_KM) continue;
+
+            Set<Long> otherHasIds = userStickerRepository.findByUserIdWithSticker(other.getId()).stream()
+                    .filter(us -> us.getQuantity() > 0)
+                    .map(us -> us.getSticker().getId())
+                    .collect(Collectors.toSet());
+
+            List<Sticker> otherDups = userStickerRepository.findDuplicatesByUser(other.getId()).stream()
+                    .map(us -> us.getSticker())
+                    .toList();
+
+            List<StickerDto> giveSample = myDuplicates.stream()
+                    .filter(s -> !otherHasIds.contains(s.getId()))
+                    .map(StickerDto::from)
+                    .toList();
+
+            List<StickerDto> receiveSample = otherDups.stream()
+                    .filter(s -> !iHaveIds.contains(s.getId()))
+                    .map(StickerDto::from)
+                    .toList();
+
+            // Match mutuo: ambos deben servir al otro
+            if (giveSample.isEmpty() || receiveSample.isEmpty()) continue;
+
+            out.add(new NearbySuggestionDto(
+                    FriendDto.from(other),
+                    Math.round(km * 10.0) / 10.0,
+                    giveSample.size(),
+                    receiveSample.size(),
+                    giveSample.stream().limit(3).toList(),
+                    receiveSample.stream().limit(3).toList()
+            ));
+        }
+
+        // Más cercanos primero; a igual distancia, mejor match
+        out.sort((a, b) -> {
+            int d = Double.compare(a.distanceKm(), b.distanceKm());
+            if (d != 0) return d;
+            return Integer.compare(b.giveCount() + b.receiveCount(), a.giveCount() + a.receiveCount());
+        });
+        return out;
+    }
+
+    /** Distancia Haversine en kilómetros. */
+    private static double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        double R = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 }

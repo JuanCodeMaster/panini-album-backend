@@ -1,6 +1,7 @@
 package com.panini.album.trades;
 
 import com.panini.album.trades.dto.CreateProposalRequest;
+import com.panini.album.trades.dto.TradeMessageDto;
 import com.panini.album.trades.dto.TradeProposalDto;
 import com.panini.album.user.User;
 import jakarta.validation.Valid;
@@ -71,4 +72,25 @@ public class TradeProposalController {
         proposalService.cancel(me, id);
         return Map.of("ok", true);
     }
+
+    // ── Chat ──
+
+    @GetMapping("/{id}/messages")
+    public List<TradeMessageDto> messages(
+            @AuthenticationPrincipal User me,
+            @PathVariable Long id
+    ) {
+        return proposalService.listMessages(me, id);
+    }
+
+    @PostMapping("/{id}/messages")
+    public TradeMessageDto send(
+            @AuthenticationPrincipal User me,
+            @PathVariable Long id,
+            @RequestBody MessageRequest body
+    ) {
+        return proposalService.sendMessage(me, id, body.body());
+    }
+
+    public record MessageRequest(String body) {}
 }

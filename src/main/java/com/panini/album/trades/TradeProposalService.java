@@ -9,6 +9,7 @@ import com.panini.album.common.exception.NotFoundException;
 import com.panini.album.social.FriendshipRepository;
 import com.panini.album.social.FriendshipStatus;
 import com.panini.album.trades.dto.CreateProposalRequest;
+import com.panini.album.trades.dto.TradeMessageDto;
 import com.panini.album.trades.dto.TradeProposalDto;
 import com.panini.album.user.User;
 import com.panini.album.user.UserRepository;
@@ -29,6 +30,7 @@ public class TradeProposalService {
     private final FriendshipRepository friendshipRepository;
     private final StickerRepository stickerRepository;
     private final UserStickerRepository userStickerRepository;
+    private final TradeMessageRepository messageRepository;
 
     @Transactional
     public TradeProposalDto create(User me, CreateProposalRequest req) {
@@ -39,9 +41,14 @@ public class TradeProposalService {
             throw new BadRequestException("No puedes proponer un intercambio contigo mismo");
         }
 
-        friendshipRepository.findBetween(me, addressee)
+        // Amigos confirmados O ambos comparten ubicación (cercanía)
+        boolean friends = friendshipRepository.findBetween(me, addressee)
                 .filter(f -> f.getStatus() == FriendshipStatus.ACCEPTED)
-                .orElseThrow(() -> new BadRequestException("Solo puedes intercambiar con amigos confirmados"));
+                .isPresent();
+        boolean bothSharing = me.isLocationSharing() && addressee.isLocationSharing();
+        if (!friends && !bothSharing) {
+            throw new BadRequestException("Solo puedes intercambiar con amigos o usuarios cercanos");
+        }
 
         List<String> given = req.stickersGiven() == null ? List.of() : req.stickersGiven();
         List<String> received = req.stickersReceived() == null ? List.of() : req.stickersReceived();
@@ -163,6 +170,41 @@ public class TradeProposalService {
         p.setStatus(TradeProposalStatus.CANCELLED);
         p.setRespondedAt(Instant.now());
         proposalRepository.save(p);
+    }
+
+    // ── Chat de la propuesta ──
+
+    private TradeProposal participantProposal(User me, Long proposalId) {
+        TradeProposal p = proposalRepository.findById(proposalId)
+                .orElseThrow(() -> new NotFoundException("Propuesta no encontrada"));
+        boolean participant = p.getRequester().getId().equals(me.getId())
+                || p.getAddressee().getId().equals(me.getId());
+        if (!participant) {
+            throw new BadRequestException("No participas en esta propuesta");
+        }
+        return p;
+    }
+
+    @Transactional(readOnly = true)
+    public List<TradeMessageDto> listMessages(User me, Long proposalId) {
+        participantProposal(me, proposalId);
+        return messageRepository.findByProposalId(proposalId).stream()
+                .map(TradeMessageDto::from)
+                .toList();
+    }
+
+    @Transactional
+    public TradeMessageDto sendMessage(User me, Long proposalId, String body) {
+        TradeProposal p = participantProposal(me, proposalId);
+        String text = body == null ? "" : body.trim();
+        if (text.isEmpty()) throw new BadRequestException("El mensaje está vacío");
+        if (text.length() > 500) text = text.substring(0, 500);
+        TradeMessage m = TradeMessage.builder()
+                .proposal(p)
+                .sender(me)
+                .body(text)
+                .build();
+        return TradeMessageDto.from(messageRepository.save(m));
     }
 
     private void transfer(User from, User to, String stickerCode) {

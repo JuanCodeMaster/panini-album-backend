@@ -29,4 +29,9 @@ public class TradeController {
     ) {
         return tradeService.getSuggestions(me, limit);
     }
+
+    @GetMapping("/nearby")
+    public List<NearbySuggestionDto> nearby(@AuthenticationPrincipal User me) {
+        return tradeService.getNearbySuggestions(me);
+    }
 }

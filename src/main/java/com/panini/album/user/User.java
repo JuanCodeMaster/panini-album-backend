@@ -39,6 +39,20 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    // ── Ubicación (opt-in para sugerencias por cercanía) ──
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
+    @Column(name = "location_sharing", nullable = false)
+    @Builder.Default
+    private boolean locationSharing = false;
+
+    @Column(name = "location_updated_at")
+    private Instant locationUpdatedAt;
+
     @PrePersist
     void onCreate() {
         if (createdAt == null) createdAt = Instant.now();
